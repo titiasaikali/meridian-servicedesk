@@ -1379,7 +1379,7 @@ def advanced_ticket_search(request):
             "ORDER BY created DESC"
         )
         with connection.cursor() as cursor:
-            cursor.execute(sql)
+            cursor.execute(sql, ["%" + term + "%"])
             rows = cursor.fetchall()
 
     cleaned = term.replace("<script>", "").replace("</script>", "")
