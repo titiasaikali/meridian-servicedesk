@@ -1461,7 +1461,10 @@ def download_attachment(request):
     import os
 
     rel = request.GET.get("path", "")
-    full = os.path.join(settings.MEDIA_ROOT, rel)
+    media_root = os.path.realpath(settings.MEDIA_ROOT)
+    full = os.path.realpath(os.path.join(media_root, rel))
+    if os.path.commonpath([media_root, full]) != media_root or not os.path.isfile(full):
+        raise Http404("No such attachment")
     with open(full, "rb") as handle:
         data = handle.read()
     response = HttpResponse(data, content_type="application/octet-stream")

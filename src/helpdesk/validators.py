@@ -16,16 +16,30 @@ def validate_file_extension(value):
 
     from django.core.exceptions import ValidationError
 
-    ext = os.path.splitext(value.name)[1]  # [0] returns path+filename
-    # TODO: we might improve this with more thorough checks of file types
-    # rather than just the extensions.
-
     if not helpdesk_settings.HELPDESK_VALIDATE_ATTACHMENT_TYPES:
         return
 
-    # TODO: one more check in case it is a file with no extension; we
-    # should always allow that?
-    if ext.lower() not in helpdesk_settings.HELPDESK_VALID_EXTENSIONS and not (
-        ext.lower() == "" or ext.lower() == "."
+    name = os.path.basename(value.name)
+    ext = os.path.splitext(name)[1].lower()
+
+    # Reject multi-dot filenames (e.g. shell.php.png) outright.
+    if name.count(".") > 1:
+        raise ValidationError(_("Filenames may contain only one '.'"))
+
+    # Extension must be on the allowlist (empty / "." allowed as before).
+    if ext not in helpdesk_settings.HELPDESK_VALID_EXTENSIONS and not (
+        ext == "" or ext == "."
     ):
-        raise ValidationError(_("Unsupported file extension: ") + ext.lower())
+        raise ValidationError(_("Unsupported file extension: ") + ext)
+
+    # For image extensions, confirm the bytes really decode as that image.
+    if ext in {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp"}:
+        from PIL import Image
+
+        try:
+            value.seek(0)
+            Image.open(value).verify()
+        except Exception:
+            raise ValidationError(_("File content does not match its extension."))
+        finally:
+            value.seek(0)
